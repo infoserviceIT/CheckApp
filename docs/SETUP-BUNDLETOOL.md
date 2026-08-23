@@ -50,20 +50,30 @@ You should see the app's `AndroidManifest.xml` printed as text. That's exactly w
 
 ## In CI (GitHub Actions)
 
-`ubuntu-latest` runners ship a JDK already. A minimal step:
+`ubuntu-latest` runners ship a JDK already. A minimal step — note this resolves
+the actual release asset URL from the GitHub API instead of hardcoding a
+filename: bundletool's asset name is versioned (`bundletool-all-X.Y.Z.jar`),
+so a hardcoded `latest/download/bundletool-all.jar` URL 404s the moment the
+version changes, and plain `curl -L` without `-f` won't even notice — it just
+saves the 404 page as if it were the jar. (This is exactly what broke the
+first real run of this project's own `.github/workflows/ci.yml`; see that
+file for the full version of this step.)
 
 ```yaml
 - uses: actions/setup-java@v4
   with:
     distribution: temurin
     java-version: '17'
-- run: |
-    curl -L -o bundletool.jar \
-      https://github.com/google/bundletool/releases/latest/download/bundletool-all.jar
+- env:
+    GH_TOKEN: ${{ github.token }}
+  run: |
+    set -euo pipefail
+    DOWNLOAD_URL=$(curl -sL -H "Authorization: Bearer $GH_TOKEN" \
+        https://api.github.com/repos/google/bundletool/releases/latest \
+      | grep -o '"browser_download_url": *"[^"]*bundletool-all[^"]*\.jar"' \
+      | sed 's/.*"\(https[^"]*\)"/\1/')
+    curl -fL -o bundletool.jar "$DOWNLOAD_URL"
     echo 'java -jar '"$PWD"'/bundletool.jar "$@"' > /usr/local/bin/bundletool
     chmod +x /usr/local/bin/bundletool
 - run: node bin/checkapp.js scan path/to/app.aab
 ```
-
-(Double-check the exact release asset filename on the releases page — Google
-occasionally changes the naming convention between versions.)
