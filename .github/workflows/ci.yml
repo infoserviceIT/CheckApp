@@ -102,6 +102,11 @@ jobs:
           FIXTURE=ci-fixture/compliant
           mkdir -p "$FIXTURE"
 
+          # android:hasCode="false" is required: this fixture is a manifest-only module
+          # with zero .dex files, and bundletool's DexFilesValidator rejects any module
+          # with no code unless it explicitly declares hasCode="false" on <application>
+          # (this is exactly what broke run #2 of this workflow — InvalidBundleException:
+          # "Module 'base' has no dex files but the attribute 'hasCode' is not set to false").
           cat > "$FIXTURE/AndroidManifest.xml" << 'EOF'
           <?xml version="1.0" encoding="utf-8"?>
           <manifest xmlns:android="http://schemas.android.com/apk/res/android"
@@ -109,7 +114,7 @@ jobs:
               android:versionCode="1"
               android:versionName="1.0-ci">
               <uses-sdk android:minSdkVersion="24" android:targetSdkVersion="36" />
-              <application android:label="CheckApp CI fixture" />
+              <application android:label="CheckApp CI fixture" android:hasCode="false" />
           </manifest>
           EOF
 
@@ -140,6 +145,8 @@ jobs:
           FIXTURE=ci-fixture/noncompliant
           mkdir -p "$FIXTURE"
 
+          # Same hasCode="false" fix as the compliant fixture above, same reason: this is
+          # a manifest-only module with no .dex files.
           cat > "$FIXTURE/AndroidManifest.xml" << 'EOF'
           <?xml version="1.0" encoding="utf-8"?>
           <manifest xmlns:android="http://schemas.android.com/apk/res/android"
@@ -147,7 +154,7 @@ jobs:
               android:versionCode="1"
               android:versionName="1.0-ci-old">
               <uses-sdk android:minSdkVersion="24" android:targetSdkVersion="33" />
-              <application android:label="CheckApp CI fixture (old)" />
+              <application android:label="CheckApp CI fixture (old)" android:hasCode="false" />
           </manifest>
           EOF
 
