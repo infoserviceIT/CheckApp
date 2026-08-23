@@ -1,5 +1,7 @@
 # CheckApp
 
+[![CI](https://github.com/infoserviceIT/CheckApp/actions/workflows/ci.yml/badge.svg)](https://github.com/infoserviceIT/CheckApp/actions/workflows/ci.yml)
+
 Checks a real Android/iOS build against Apple App Store and Google Play
 guidelines — compliance *and* usability — before it reaches a human
 reviewer, instead of finding out after a rejection.
