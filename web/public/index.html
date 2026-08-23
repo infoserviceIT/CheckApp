@@ -5,6 +5,9 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>CheckApp — verifica il tuo .aab</title>
 <meta name="description" content="Carica un Android App Bundle (.aab) e verificalo contro le linee guida Google Play prima di sottometterlo — anonimo, nessun account, il file viene eliminato subito dopo la scansione.">
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
@@ -42,7 +45,9 @@
   code,.mono{font-family:"IBM Plex Mono",ui-monospace,monospace;}
   .wrap{max-width:760px;margin:0 auto;padding:0 20px;}
   header{padding:48px 0 28px;border-bottom:1px solid var(--line);}
-  header h1{margin:0 0 8px;font-size:1.9rem;}
+  header .brand{display:flex;align-items:center;gap:14px;margin-bottom:8px;}
+  header .brand img{width:48px;height:48px;flex:none;}
+  header h1{margin:0;font-size:1.9rem;}
   header p{margin:0;color:var(--ink-soft);max-width:56ch;}
   .badge{
     display:inline-block;font-size:.72rem;font-weight:600;letter-spacing:.04em;
@@ -115,7 +120,10 @@
 <div class="wrap">
   <header>
     <span class="badge">Fase 1 · Android</span>
-    <h1>CheckApp</h1>
+    <div class="brand">
+      <img src="/logo-128.png" alt="" width="48" height="48">
+      <h1>CheckApp</h1>
+    </div>
     <p>Carica un Android App Bundle (<code>.aab</code>) e verificalo contro le linee guida di Google Play
        prima di sottometterlo — anonimo, nessun account. Il file viene analizzato ed eliminato
        subito dopo, non lo conserviamo.</p>
