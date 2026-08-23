@@ -177,3 +177,125 @@ jobs:
           else
             echo "Confirmed: checkapp correctly blocked the non-compliant build."
           fi
+
+  web-docker-integration:
+    name: Web portal Docker image (real bundletool, real .aab, over real HTTP)
+    runs-on: ubuntu-latest
+    # This job answers a different question than the two above: not "does the
+    # checkapp CLI/library work", but "does web/Dockerfile actually produce a
+    # working container" — the one thing about the web portal (see web/README.md)
+    # that couldn't be verified in the sandbox this was built in (no way to
+    # reach Docker Hub or download a real bundletool jar there). This is that
+    # missing verification, running for real.
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build the web portal image (repo root is the build context — see web/Dockerfile)
+        run: docker build -f web/Dockerfile -t checkapp-web:ci .
+
+      - name: Run it and wait for /healthz to report bundletool is reachable
+        run: |
+          set -euo pipefail
+          docker run -d --name checkapp-web-ci -p 8080:8080 checkapp-web:ci
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:8080/healthz > /tmp/healthz.json 2>/dev/null; then
+              echo "Container healthy after ${i}s:"
+              cat /tmp/healthz.json
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "::error::Container never became healthy — /healthz never returned 200 within 30s"
+          docker logs checkapp-web-ci
+          exit 1
+
+      # Same real Android tooling as the `bundletool-integration` job above —
+      # this job runs on its own separate runner, so it needs its own copy.
+      # See that job's comments for why aapt2/proto-format matters here.
+      - name: Set up Android command-line tools (for aapt2)
+        uses: android-actions/setup-android@v3
+
+      - name: Install one pinned platform + build-tools (for aapt2)
+        run: sdkmanager "platforms;android-34" "build-tools;34.0.0"
+
+      - name: Download a real bundletool jar (to build test .aabs, not part of the image itself)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          DOWNLOAD_URL=$(curl -sL -H "Authorization: Bearer $GH_TOKEN" \
+              https://api.github.com/repos/google/bundletool/releases/latest \
+            | grep -o '"browser_download_url": *"[^"]*bundletool-all[^"]*\.jar"' \
+            | sed 's/.*"\(https[^"]*\)"/\1/')
+          if [ -z "$DOWNLOAD_URL" ]; then
+            echo "::error::Could not resolve the bundletool-all jar URL from the GitHub API."
+            exit 1
+          fi
+          curl -fL -o /tmp/bundletool.jar "$DOWNLOAD_URL"
+          java -jar /tmp/bundletool.jar version
+
+      - name: Build one real compliant (targetSdkVersion 36) and one non-compliant (33) .aab
+        run: |
+          set -euo pipefail
+          AAPT2="$ANDROID_HOME/build-tools/34.0.0/aapt2"
+
+          build_fixture () {
+            local FIXTURE="$1" PACKAGE="$2" TARGET_SDK="$3"
+            mkdir -p "$FIXTURE"
+            cat > "$FIXTURE/AndroidManifest.xml" << EOF
+          <?xml version="1.0" encoding="utf-8"?>
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android"
+              package="$PACKAGE"
+              android:versionCode="1"
+              android:versionName="1.0-ci-web">
+              <uses-sdk android:minSdkVersion="24" android:targetSdkVersion="$TARGET_SDK" />
+              <application android:label="CheckApp web CI fixture" android:hasCode="false" />
+          </manifest>
+          EOF
+            "$AAPT2" link --proto-format \
+              -o "$FIXTURE/base.apk" \
+              --manifest "$FIXTURE/AndroidManifest.xml" \
+              -I "$ANDROID_HOME/platforms/android-34/android.jar"
+            mkdir -p "$FIXTURE/module/manifest"
+            unzip -o "$FIXTURE/base.apk" AndroidManifest.xml -d "$FIXTURE/unpacked"
+            mv "$FIXTURE/unpacked/AndroidManifest.xml" "$FIXTURE/module/manifest/AndroidManifest.xml"
+            (cd "$FIXTURE/module" && zip -r ../module.zip manifest)
+            java -jar /tmp/bundletool.jar build-bundle --modules="$FIXTURE/module.zip" --output="$FIXTURE/app.aab"
+          }
+
+          build_fixture ci-fixture/web-compliant com.checkapp.citest.web.ok 36
+          build_fixture ci-fixture/web-noncompliant com.checkapp.citest.web.old 33
+
+      - name: "POST the compliant .aab over real HTTP and check the verdict (expected: 0 blocking)"
+        run: |
+          set -euo pipefail
+          curl -sf -F "file=@ci-fixture/web-compliant/app.aab;filename=app.aab" \
+            http://localhost:8080/api/scan > /tmp/scan-compliant.json
+          cat /tmp/scan-compliant.json
+          BLOCKING=$(jq '.summary.blockingFailures' /tmp/scan-compliant.json)
+          if [ "$BLOCKING" -ne 0 ]; then
+            echo "::error::Expected 0 blocking failures for a targetSdkVersion=36 upload, got $BLOCKING"
+            exit 1
+          fi
+          echo "Confirmed: the deployed container correctly passed the compliant upload via HTTP."
+
+      - name: "POST the non-compliant .aab over real HTTP and check the verdict (expected: >=1 blocking)"
+        run: |
+          set -euo pipefail
+          curl -sf -F "file=@ci-fixture/web-noncompliant/app.aab;filename=app.aab" \
+            http://localhost:8080/api/scan > /tmp/scan-noncompliant.json
+          cat /tmp/scan-noncompliant.json
+          BLOCKING=$(jq '.summary.blockingFailures' /tmp/scan-noncompliant.json)
+          if [ "$BLOCKING" -lt 1 ]; then
+            echo "::error::Expected at least 1 blocking failure for a targetSdkVersion=33 upload, got $BLOCKING"
+            exit 1
+          fi
+          echo "Confirmed: the deployed container correctly blocked the non-compliant upload via HTTP."
+
+      - name: Container logs (always, useful when a step above fails)
+        if: always()
+        run: docker logs checkapp-web-ci || true
+
+      - name: Clean up the test container
+        if: always()
+        run: docker rm -f checkapp-web-ci || true

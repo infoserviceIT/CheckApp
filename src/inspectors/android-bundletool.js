@@ -118,3 +118,28 @@ function firstMatch(text, regex) {
   const m = text.match(regex);
   return m ? m[1] : null;
 }
+
+/**
+ * Lightweight readiness check: confirms bundletool can actually be invoked
+ * (Java present, jar/wrapper resolvable) without needing a real .aab to test
+ * against. Used by the web portal's /healthz so a misconfigured deployment
+ * fails loudly and immediately, instead of only failing on someone's first
+ * real upload with a confusing 500.
+ *
+ * @returns {{ ok: true, version: string } | { ok: false, error: string }}
+ */
+export function checkBundletoolAvailable() {
+  const { cmd, baseArgs } = resolveBundletoolCommand();
+  try {
+    const out = execFileSync(cmd, [...baseArgs, 'version'], {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    return { ok: true, version: out.trim() };
+  } catch (err) {
+    if (err.code === 'ENOENT') {
+      return { ok: false, error: new BundletoolNotFoundError(cmd).message };
+    }
+    return { ok: false, error: err.message };
+  }
+}

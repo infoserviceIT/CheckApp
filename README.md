@@ -61,7 +61,17 @@ src/rules/                    one module per rule; index.js per platform registe
 src/report/format.js          turns findings into a console table or JSON
 test/                         node:test — no external test framework dependency
 docs/SETUP-BUNDLETOOL.md      how to install the one external dependency this has
+web/                          optional web portal (anonymous upload-and-scan) — see web/README.md
 ```
+
+## Web portal
+
+For people who don't want to install Java/bundletool locally (or just want
+a link to share), `web/` is a small Express server that wraps this same
+library behind an upload-a-`.aab`-get-a-report page — no accounts, nothing
+stored. It's a separate, optional layer: the CLI/library above works
+completely on its own without it. See `web/README.md` for running it
+locally, the Dockerfile, and deploy notes (Fly.io/Render).
 
 ## Why a CLI/library first, not a hosted portal
 

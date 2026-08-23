@@ -1,0 +1,37 @@
+# Fly.io deploy config for the CheckApp web portal (web/).
+#
+# Lives at the REPO ROOT (not inside web/) on purpose: the build needs the
+# whole repo as context, since web/Dockerfile copies both src/ and web/.
+#
+# First time:
+#   fly launch --copy-config --no-deploy    # from the repo root; review app name + region
+#   fly deploy
+# Every update after that: just `fly deploy` from the repo root.
+#
+# This is a separate, standalone deploy target — it does not touch or share
+# anything with any other app/VPS you run elsewhere.
+
+app = "checkapp-scan"           # change to whatever name is free on Fly
+primary_region = "fra"          # pick whatever's closest to your users; `fly platform regions` lists them
+
+[build]
+  dockerfile = "web/Dockerfile"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = "stop"    # scales to 0 running machines when idle...
+  auto_start_machines = true     # ...and restarts one automatically on the next request
+  min_machines_running = 0       # (there's still a small per-GB storage cost while stopped — see web/README.md)
+
+  [http_service.checks]
+    [http_service.checks.healthz]
+      grace_period = "10s"
+      interval = "30s"
+      method = "get"
+      path = "/healthz"
+      timeout = "5s"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "1gb"   # bundletool is a JVM process — 512MB works but 1GB gives headroom

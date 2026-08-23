@@ -1,0 +1,265 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CheckApp — verifica il tuo .aab</title>
+<meta name="description" content="Carica un Android App Bundle (.aab) e verificalo contro le linee guida Google Play prima di sottometterlo — anonimo, nessun account, il file viene eliminato subito dopo la scansione.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#F5F6F5; --panel:#FFFFFF; --panel-2:#EEF1F1;
+    --ink:#121820; --ink-soft:#4B5560; --ink-faint:#78838C;
+    --line:#DBE0E2; --line-strong:#C2C9CC;
+    --accent:#0B7A87; --accent-bright:#0E93A2; --accent-wash:#E4F1F2;
+    --good:#1F9254; --good-wash:#E4F3EA;
+    --warn:#966016; --warn-wash:#FBF0DD;
+    --critical:#B3261E; --critical-wash:#FBE7E5;
+    --info:#4B5560; --info-wash:#EEF1F1;
+    --shadow: 0 1px 2px rgba(18,24,32,.04), 0 8px 24px -12px rgba(18,24,32,.12);
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --paper:#0C1116; --panel:#131A21; --panel-2:#182029;
+      --ink:#E8ECEE; --ink-soft:#9FAAB2; --ink-faint:#71808A;
+      --line:#26313B; --line-strong:#334150;
+      --accent:#35C2D1; --accent-bright:#59D6E4; --accent-wash:#122A2E;
+      --good:#3FBE72; --good-wash:#122A1D;
+      --warn:#E0A83E; --warn-wash:#2B2210;
+      --critical:#F0574A; --critical-wash:#2E1512;
+      --info:#9FAAB2; --info-wash:#182029;
+      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 12px 28px -14px rgba(0,0,0,.55);
+    }
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background:var(--paper); color:var(--ink);
+    font-family:"IBM Plex Sans",ui-sans-serif,system-ui,sans-serif;
+    font-size:16px; line-height:1.55;
+  }
+  code,.mono{font-family:"IBM Plex Mono",ui-monospace,monospace;}
+  .wrap{max-width:760px;margin:0 auto;padding:0 20px;}
+  header{padding:48px 0 28px;border-bottom:1px solid var(--line);}
+  header h1{margin:0 0 8px;font-size:1.9rem;}
+  header p{margin:0;color:var(--ink-soft);max-width:56ch;}
+  .badge{
+    display:inline-block;font-size:.72rem;font-weight:600;letter-spacing:.04em;
+    text-transform:uppercase;color:var(--accent);background:var(--accent-wash);
+    padding:3px 9px;border-radius:99px;margin-bottom:14px;
+  }
+  main{padding:36px 0 80px;}
+  .dropzone{
+    border:2px dashed var(--line-strong); border-radius:14px; padding:40px 24px;
+    text-align:center; background:var(--panel); cursor:pointer;
+    transition:border-color .15s, background .15s;
+  }
+  .dropzone.drag{ border-color:var(--accent-bright); background:var(--accent-wash); }
+  .dropzone p{margin:0 0 6px;color:var(--ink-soft);}
+  .dropzone .filename{ font-family:"IBM Plex Mono",monospace; color:var(--ink); font-weight:500; margin-top:10px; word-break:break-all; }
+  input[type=file]{display:none;}
+  .btn{
+    appearance:none; border:none; border-radius:9px; padding:12px 22px;
+    font:inherit; font-weight:600; cursor:pointer; color:#fff; background:var(--accent);
+    transition:opacity .15s, transform .1s;
+  }
+  .btn:hover{opacity:.92;}
+  .btn:active{transform:scale(.98);}
+  .btn:disabled{opacity:.45;cursor:not-allowed;}
+  .actions{margin-top:18px;display:flex;align-items:center;gap:14px;}
+  .spinner{
+    width:16px;height:16px;border-radius:50%;
+    border:2px solid var(--line-strong); border-top-color:var(--accent);
+    animation:spin .7s linear infinite; display:none;
+  }
+  .spinner.on{display:inline-block;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+  .privacy-note{margin-top:16px;font-size:.86rem;color:var(--ink-faint);}
+  #result{margin-top:40px;display:none;}
+  .verdict{
+    border-radius:14px;padding:22px 24px;margin-bottom:22px;
+    display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;
+  }
+  .verdict.ok{background:var(--good-wash);}
+  .verdict.blocked{background:var(--critical-wash);}
+  .verdict h2{margin:0 0 4px;font-size:1.3rem;}
+  .verdict.ok h2{color:var(--good);}
+  .verdict.blocked h2{color:var(--critical);}
+  .verdict p{margin:0;color:var(--ink-soft);font-size:.95rem;}
+  .finding{
+    background:var(--panel); border:1px solid var(--line); border-radius:10px;
+    padding:16px 18px; margin-bottom:10px;
+  }
+  .finding-head{display:flex;align-items:baseline;gap:10px;margin-bottom:6px;flex-wrap:wrap;}
+  .pill{
+    font-size:.7rem;font-weight:700;letter-spacing:.03em;padding:2px 8px;border-radius:99px;
+    text-transform:uppercase;flex:none;
+  }
+  .pill.pass{background:var(--good-wash);color:var(--good);}
+  .pill.fail{background:var(--critical-wash);color:var(--critical);}
+  .pill.warn{background:var(--warn-wash);color:var(--warn);}
+  .pill.info{background:var(--info-wash);color:var(--info);}
+  .finding-title{font-weight:600;}
+  .finding-detail{color:var(--ink-soft);font-size:.92rem;margin:0 0 4px;}
+  .finding-meta{color:var(--ink-faint);font-size:.78rem;}
+  .error-box{
+    background:var(--critical-wash);color:var(--critical);border-radius:10px;
+    padding:14px 16px;margin-top:18px;font-size:.92rem;display:none;
+  }
+  footer{border-top:1px solid var(--line);padding:28px 0 60px;color:var(--ink-faint);font-size:.82rem;}
+  footer a{color:var(--accent-bright);}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <span class="badge">Fase 1 · Android</span>
+    <h1>CheckApp</h1>
+    <p>Carica un Android App Bundle (<code>.aab</code>) e verificalo contro le linee guida di Google Play
+       prima di sottometterlo — anonimo, nessun account. Il file viene analizzato ed eliminato
+       subito dopo, non lo conserviamo.</p>
+  </header>
+
+  <main>
+    <div class="dropzone" id="dropzone" tabindex="0" role="button" aria-label="Carica un file .aab">
+      <p><strong>Trascina qui il tuo file .aab</strong> oppure clicca per sceglierlo</p>
+      <p style="font-size:.85rem;">Limite 300MB · solo file .aab</p>
+      <div class="filename" id="filename"></div>
+    </div>
+    <input type="file" id="fileInput" accept=".aab">
+
+    <div class="actions">
+      <button class="btn" id="scanBtn" disabled>Scansiona</button>
+      <span class="spinner" id="spinner"></span>
+      <span id="statusText" style="color:var(--ink-faint);font-size:.9rem;"></span>
+    </div>
+    <p class="privacy-note">Nessun dato viene salvato: il bundle caricato esiste solo per la durata
+       della scansione. Codice sorgente su <a href="https://github.com/infoserviceIT/CheckApp" style="color:var(--accent-bright);">GitHub</a> (MIT).</p>
+
+    <div class="error-box" id="errorBox"></div>
+
+    <div id="result">
+      <div class="verdict" id="verdict"></div>
+      <div id="findings"></div>
+    </div>
+  </main>
+
+  <footer>
+    CheckApp è open source (MIT) — <a href="https://github.com/infoserviceIT/CheckApp">codice</a>,
+    <a href="https://github.com/infoserviceIT/CheckApp/blob/main/docs/SETUP-BUNDLETOOL.md">documentazione</a>.
+    Fase 1: solo Android, 5 controlli (target SDK, package name, versionCode, versionName, permessi).
+    iOS e altri controlli in arrivo.
+  </footer>
+</div>
+
+<script>
+(function () {
+  const dropzone = document.getElementById('dropzone');
+  const fileInput = document.getElementById('fileInput');
+  const filenameEl = document.getElementById('filename');
+  const scanBtn = document.getElementById('scanBtn');
+  const spinner = document.getElementById('spinner');
+  const statusText = document.getElementById('statusText');
+  const errorBox = document.getElementById('errorBox');
+  const resultEl = document.getElementById('result');
+  const verdictEl = document.getElementById('verdict');
+  const findingsEl = document.getElementById('findings');
+
+  let selectedFile = null;
+
+  function pickFile(file) {
+    if (!file) return;
+    if (!file.name.toLowerCase().endsWith('.aab')) {
+      showError('Solo file .aab sono supportati in questa fase (Android, Fase 1).');
+      return;
+    }
+    selectedFile = file;
+    filenameEl.textContent = file.name + ' (' + (file.size / (1024 * 1024)).toFixed(1) + ' MB)';
+    scanBtn.disabled = false;
+    hideError();
+  }
+
+  dropzone.addEventListener('click', () => fileInput.click());
+  dropzone.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fileInput.click(); }
+  });
+  fileInput.addEventListener('change', () => pickFile(fileInput.files[0]));
+
+  ['dragenter', 'dragover'].forEach((evt) =>
+    dropzone.addEventListener(evt, (e) => { e.preventDefault(); dropzone.classList.add('drag'); })
+  );
+  ['dragleave', 'drop'].forEach((evt) =>
+    dropzone.addEventListener(evt, (e) => { e.preventDefault(); dropzone.classList.remove('drag'); })
+  );
+  dropzone.addEventListener('drop', (e) => pickFile(e.dataTransfer.files[0]));
+
+  function showError(message) {
+    errorBox.textContent = message;
+    errorBox.style.display = 'block';
+  }
+  function hideError() {
+    errorBox.style.display = 'none';
+  }
+
+  const STATUS_LABEL = { pass: 'Pass', fail: 'Fail', warn: 'Warn', info: 'Info' };
+
+  function renderReport(report) {
+    const blocked = report.summary.blockingFailures > 0;
+    verdictEl.className = 'verdict ' + (blocked ? 'blocked' : 'ok');
+    verdictEl.innerHTML =
+      '<div><h2>' + (blocked ? 'Bloccata' : 'Approvata') + '</h2>' +
+      '<p>' + report.summary.pass + ' pass, ' + report.summary.fail + ' fail, ' +
+      report.summary.warn + ' warn, ' + report.summary.info + ' info — ' +
+      report.summary.blockingFailures + ' errore/i bloccante/i.</p></div>';
+
+    findingsEl.innerHTML = '';
+    for (const f of report.findings) {
+      const div = document.createElement('div');
+      div.className = 'finding';
+      div.innerHTML =
+        '<div class="finding-head"><span class="pill ' + f.status + '">' + STATUS_LABEL[f.status] + '</span>' +
+        '<span class="finding-title">' + escapeHtml(f.title) + '</span></div>' +
+        '<p class="finding-detail">' + escapeHtml(f.detail) + '</p>' +
+        '<p class="finding-meta">' + escapeHtml(f.severity) + ' · ' + escapeHtml(f.guideline) + '</p>';
+      findingsEl.appendChild(div);
+    }
+    resultEl.style.display = 'block';
+  }
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, (c) => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+    }[c]));
+  }
+
+  scanBtn.addEventListener('click', async () => {
+    if (!selectedFile) return;
+    hideError();
+    resultEl.style.display = 'none';
+    scanBtn.disabled = true;
+    spinner.classList.add('on');
+    statusText.textContent = 'Analisi in corso — può richiedere qualche secondo, soprattutto al primo utilizzo.';
+
+    try {
+      const formData = new FormData();
+      formData.append('file', selectedFile);
+      const res = await fetch('/api/scan', { method: 'POST', body: formData });
+      const body = await res.json();
+      if (!res.ok) {
+        showError(body.error || ('Errore del server (' + res.status + ').'));
+        return;
+      }
+      renderReport(body);
+    } catch (e) {
+      showError('Impossibile contattare il server. Controlla la connessione e riprova.');
+    } finally {
+      scanBtn.disabled = false;
+      spinner.classList.remove('on');
+      statusText.textContent = '';
+    }
+  });
+})();
+</script>
+</body>
+</html>
