@@ -1,0 +1,29 @@
+{
+  "name": "checkapp",
+  "version": "0.1.0",
+  "description": "Pre-submission compliance and usability checker for Android/iOS builds against Apple App Store and Google Play guidelines.",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "checkapp": "./bin/checkapp.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "test": "node --test test/*.test.js",
+    "start": "node bin/checkapp.js"
+  },
+  "keywords": [
+    "app-store",
+    "google-play",
+    "android",
+    "ios",
+    "compliance",
+    "pre-submission",
+    "aab",
+    "apk"
+  ],
+  "dependencies": {},
+  "devDependencies": {}
+}
