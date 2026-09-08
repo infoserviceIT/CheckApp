@@ -29,6 +29,9 @@ export function toConsoleReport(findings) {
   for (const f of findings) {
     lines.push(`[${STATUS_LABEL[f.status]}] (${f.severity}) ${f.title}`);
     lines.push(`        ${f.detail}`);
+    if (f.remediation) {
+      lines.push(`        Fix: ${f.remediation}`);
+    }
   }
   lines.push('');
   lines.push(

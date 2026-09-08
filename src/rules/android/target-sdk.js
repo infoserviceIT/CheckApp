@@ -27,6 +27,10 @@ export const rule = {
         status: 'warn',
         detail:
           'Could not read android:targetSdkVersion from the manifest (missing <uses-sdk> tag?).',
+        remediation:
+          'This is normally set implicitly by the build tooling rather than hand-edited, so a ' +
+          'missing value usually means the manifest is unusual or bundletool could not read it. ' +
+          'Run `bundletool dump manifest --bundle <file>` yourself and check the <uses-sdk> line.',
       };
     }
     if (data.targetSdkVersion < MIN_REQUIRED_TARGET_SDK) {
@@ -36,7 +40,14 @@ export const rule = {
           `targetSdkVersion is ${data.targetSdkVersion}, below the required ` +
           `${MIN_REQUIRED_TARGET_SDK}. Google Play rejects new submissions/updates ` +
           `below this floor from ${HARD_DEADLINE} (technical extension to ${EXTENDED_DEADLINE} ` +
-          `available in Play Console). Bump targetSdkVersion in build.gradle and rebuild.`,
+          `available in Play Console).`,
+        remediation:
+          `Raise targetSdkVersion to ${MIN_REQUIRED_TARGET_SDK} and rebuild — where that's set ` +
+          `depends on the build pipeline: Gradle projects set it in build.gradle ` +
+          `(defaultConfig.targetSdkVersion); Expo/EAS builds set it via app.json/app.config.js's ` +
+          `expo.android.targetSdkVersion (often actually controlled by the Expo SDK version, so ` +
+          `an SDK upgrade may be what's really needed); Bubblewrap/TWA builds set it in ` +
+          `twa-manifest.json before running "bubblewrap build".`,
       };
     }
     return {

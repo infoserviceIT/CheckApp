@@ -34,9 +34,21 @@ This is a fresh scaffold, not a finished tool. What's real today:
   least one popular AAB-packaging path (PWABuilder/Bubblewrap) was still
   generating `targetSdkVersion 35` as of this writing. `checkapp scan` catches
   that before you find out from a Play Console rejection.
-- iOS support, the AI remediation layer, and the rest of the ~30-rule
-  catalog (privacy, health-app disclaimers, in-app-purchase routing,
-  accessibility, native-feel UX) are Phase 2+ — see `CONTRIBUTING.md`.
+- Actionable findings carry a concrete `remediation` field — not just
+  "what's wrong" but "what to change and where" (Gradle vs. Expo/EAS vs.
+  Bubblewrap config, specifically) — surfaced as a `Fix: ...` line in the
+  CLI, in `--json` output, and in the web portal. The permissions inventory
+  expands this further: one finding per Play-Console-restricted permission
+  (`SYSTEM_ALERT_WINDOW`, `ACCESS_BACKGROUND_LOCATION`,
+  `MANAGE_EXTERNAL_STORAGE`, SMS/Call Log, `QUERY_ALL_PACKAGES`,
+  `BIND_ACCESSIBILITY_SERVICE`) plus a consolidated Data Safety reminder —
+  all advisory (`warn`), never blocking, since whether they're actually a
+  problem depends on a Play Console declaration this tool can't see.
+- iOS support, an AI-assisted remediation layer (natural-language,
+  code-aware suggestions — a step beyond the static guidance above), and
+  the rest of the ~30-rule catalog (privacy, health-app disclaimers,
+  in-app-purchase routing, accessibility, native-feel UX) are Phase 2+ —
+  see `CONTRIBUTING.md`.
 
 ## Quickstart
 

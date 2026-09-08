@@ -49,3 +49,22 @@ export const manifestDataMissingFields = {
   permissions: [],
   rawManifestXml: '<manifest xmlns:android="http://schemas.android.com/apk/res/android"></manifest>',
 };
+
+/**
+ * Shaped after the real second Axis Core Align test build (Expo/"Reactive
+ * expo" pipeline): a mix of ordinary, Data-Safety-relevant, and
+ * Play-Console-restricted permissions, plus one Android-auto-generated
+ * receiver permission that must never be flagged.
+ */
+export const manifestDataSensitivePermissions = {
+  ...manifestDataPassing,
+  packageName: 'tech.axiscore.align',
+  permissions: [
+    'android.permission.INTERNET',
+    'android.permission.SYSTEM_ALERT_WINDOW',
+    'android.permission.ACCESS_FINE_LOCATION',
+    'android.permission.CAMERA',
+    'android.permission.RECORD_AUDIO',
+    'tech.axiscore.align.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION',
+  ],
+};

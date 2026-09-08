@@ -107,6 +107,11 @@
   .pill.info{background:var(--info-wash);color:var(--info);}
   .finding-title{font-weight:600;}
   .finding-detail{color:var(--ink-soft);font-size:.92rem;margin:0 0 4px;}
+  .finding-fix{
+    background:var(--accent-wash); border-radius:8px; padding:9px 12px;
+    margin:0 0 8px; font-size:.88rem; color:var(--ink);
+  }
+  .finding-fix strong{color:var(--accent);}
   .finding-meta{color:var(--ink-faint);font-size:.78rem;}
   .error-box{
     background:var(--critical-wash);color:var(--critical);border-radius:10px;
@@ -229,6 +234,7 @@
         '<div class="finding-head"><span class="pill ' + f.status + '">' + STATUS_LABEL[f.status] + '</span>' +
         '<span class="finding-title">' + escapeHtml(f.title) + '</span></div>' +
         '<p class="finding-detail">' + escapeHtml(f.detail) + '</p>' +
+        (f.remediation ? '<p class="finding-fix"><strong>Come risolvere:</strong> ' + escapeHtml(f.remediation) + '</p>' : '') +
         '<p class="finding-meta">' + escapeHtml(f.severity) + ' · ' + escapeHtml(f.guideline) + '</p>';
       findingsEl.appendChild(div);
     }
