@@ -113,6 +113,18 @@
   }
   .finding-fix strong{color:var(--accent);}
   .finding-meta{color:var(--ink-faint);font-size:.78rem;}
+  .copy-row{display:none;align-items:center;gap:12px;margin:-6px 0 22px;flex-wrap:wrap;}
+  .copy-row.show{display:flex;}
+  .btn-copy{
+    appearance:none; border:1px solid var(--line-strong); border-radius:9px;
+    padding:9px 16px; font:inherit; font-size:.88rem; font-weight:600; cursor:pointer;
+    color:var(--accent); background:var(--panel);
+    transition:background .15s, border-color .15s, transform .1s;
+  }
+  .btn-copy:hover{background:var(--accent-wash);border-color:var(--accent);}
+  .btn-copy:active{transform:scale(.98);}
+  .copy-status{font-size:.85rem;color:var(--good);font-weight:600;opacity:0;transition:opacity .15s;}
+  .copy-status.show{opacity:1;}
   .error-box{
     background:var(--critical-wash);color:var(--critical);border-radius:10px;
     padding:14px 16px;margin-top:18px;font-size:.92rem;display:none;
@@ -154,6 +166,10 @@
 
     <div id="result">
       <div class="verdict" id="verdict"></div>
+      <div class="copy-row" id="copyRow">
+        <button class="btn-copy" id="copyFixBtn" type="button">Copia i problemi da correggere</button>
+        <span class="copy-status" id="copyStatus">Copiato negli appunti ✓</span>
+      </div>
       <div id="findings"></div>
     </div>
   </main>
@@ -178,6 +194,9 @@
   const resultEl = document.getElementById('result');
   const verdictEl = document.getElementById('verdict');
   const findingsEl = document.getElementById('findings');
+  const copyRow = document.getElementById('copyRow');
+  const copyFixBtn = document.getElementById('copyFixBtn');
+  const copyStatus = document.getElementById('copyStatus');
 
   let selectedFile = null;
 
@@ -216,6 +235,7 @@
   }
 
   const STATUS_LABEL = { pass: 'Pass', fail: 'Fail', warn: 'Warn', info: 'Info' };
+  const STATUS_LABEL_PLAIN = { fail: 'DA CORREGGERE', warn: 'DA VERIFICARE' };
 
   function renderReport(report) {
     const blocked = report.summary.blockingFailures > 0;
@@ -238,6 +258,17 @@
         '<p class="finding-meta">' + escapeHtml(f.severity) + ' · ' + escapeHtml(f.guideline) + '</p>';
       findingsEl.appendChild(div);
     }
+
+    copyStatus.classList.remove('show');
+    const actionable = report.findings.filter((f) => f.status === 'warn' || f.status === 'fail');
+    if (actionable.length > 0) {
+      copyFixBtn.textContent = 'Copia i problemi da correggere (' + actionable.length + ')';
+      copyRow.classList.add('show');
+      copyFixBtn.onclick = () => copyActionableFindings(actionable);
+    } else {
+      copyRow.classList.remove('show');
+    }
+
     resultEl.style.display = 'block';
   }
 
@@ -245,6 +276,52 @@
     return String(s).replace(/[&<>"']/g, (c) => ({
       '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
     }[c]));
+  }
+
+  // Builds a plain-text, paste-ready block listing only the findings that need
+  // action (warn/fail) — meant for pasting straight into an AI coding tool
+  // (Bolt, Base44, ...) so it has the "what's wrong" + "how to fix it" text
+  // without the person needing DevTools or the CLI's --json output.
+  function buildActionableText(actionable) {
+    const lines = ['CheckApp — ' + actionable.length + ' problema/i da correggere prima della pubblicazione:', ''];
+    actionable.forEach((f, i) => {
+      lines.push((i + 1) + '. [' + (STATUS_LABEL_PLAIN[f.status] || f.status.toUpperCase()) + '] ' + f.title);
+      lines.push('   Perché: ' + f.detail);
+      if (f.remediation) {
+        lines.push('   Come risolvere: ' + f.remediation);
+      }
+      lines.push('   Guida: ' + f.guideline);
+      lines.push('');
+    });
+    return lines.join('\n').trim() + '\n';
+  }
+
+  let copyStatusTimer = null;
+
+  async function copyActionableFindings(actionable) {
+    const text = buildActionableText(actionable);
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch (e) {
+      // Fallback for browsers/contexts without the async Clipboard API.
+      const textarea = document.createElement('textarea');
+      textarea.value = text;
+      textarea.style.position = 'fixed';
+      textarea.style.opacity = '0';
+      document.body.appendChild(textarea);
+      textarea.select();
+      try {
+        document.execCommand('copy');
+      } catch (copyErr) {
+        document.body.removeChild(textarea);
+        showError('Impossibile copiare automaticamente. Seleziona e copia il testo manualmente.');
+        return;
+      }
+      document.body.removeChild(textarea);
+    }
+    copyStatus.classList.add('show');
+    clearTimeout(copyStatusTimer);
+    copyStatusTimer = setTimeout(() => copyStatus.classList.remove('show'), 2500);
   }
 
   scanBtn.addEventListener('click', async () => {
