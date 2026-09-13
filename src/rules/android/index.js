@@ -1,6 +1,7 @@
 import { rule as targetSdkRule } from './target-sdk.js';
 import { packageNameRule, versionCodeRule, versionNameRule } from './manifest-basics.js';
 import { rule as permissionsInventoryRule } from './permissions-inventory.js';
+import { rule as appOptimizationRule } from './app-optimization.js';
 
 // The full catalog (~30 rules) is mapped out in the CheckApp architecture
 // document; this is the slice that's actually implemented and runnable
@@ -12,4 +13,5 @@ export const androidRules = [
   versionCodeRule,
   versionNameRule,
   permissionsInventoryRule,
+  appOptimizationRule,
 ];

@@ -25,9 +25,10 @@ link — it's not duplicated here so this README doesn't go stale next to it).
 This is a fresh scaffold, not a finished tool. What's real today:
 
 - A CLI (`checkapp scan app.aab`) that reads a real Android App Bundle via
-  Google's own `bundletool` (see `docs/SETUP-BUNDLETOOL.md`) and runs 5
+  Google's own `bundletool` (see `docs/SETUP-BUNDLETOOL.md`) and runs 6
   rules against it: target SDK floor, package name, versionCode,
-  versionName, and a permissions inventory.
+  versionName, a permissions inventory, and app optimization (R8/Baseline
+  Profile — see below).
 - One of those rules is not academic: Google Play requires
   `targetSdkVersion 36` for every new submission/update from **2026-08-31**
   (technical extension to 2026-11-01 available in Play Console), and at
@@ -44,6 +45,17 @@ This is a fresh scaffold, not a finished tool. What's real today:
   `BIND_ACCESSIBILITY_SERVICE`) plus a consolidated Data Safety reminder —
   all advisory (`warn`), never blocking, since whether they're actually a
   problem depends on a Play Console declaration this tool can't see.
+- App optimization: Play Console computes an obfuscation/shrinking score
+  from the bundle you actually upload, and (per real-world reports, not an
+  official Google page we could find — see the rule's own comments)
+  apps with more than ~10MB of compiled code need at least 25% of that
+  score or risk "App optimization is below our threshold" warnings.
+  CheckApp can't reproduce Google's exact percentage, but reads the
+  compiled `.dex` directly (no bundletool needed for this part) to tell
+  whether R8 minification looks like it ran at all — the actual root
+  cause in every real case we looked at — plus a simple presence check
+  for a Baseline Profile. Both are advisory (`warn`/`info`), same
+  reasoning as the permissions catalog above.
 - iOS support, an AI-assisted remediation layer (natural-language,
   code-aware suggestions — a step beyond the static guidance above), and
   the rest of the ~30-rule catalog (privacy, health-app disclaimers,

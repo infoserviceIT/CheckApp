@@ -68,3 +68,45 @@ export const manifestDataSensitivePermissions = {
     'tech.axiscore.align.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION',
   ],
 };
+
+// app-optimization rule fixtures. These fields only exist on real data once
+// inspectAndroidBundle's direct zip/dex read succeeds (see
+// src/inspectors/android-optimization.js) — manifestDataPassing above has
+// none of them, which is itself a useful fixture: it's what "signal
+// unavailable" looks like (undefined, same as the explicit nulls below).
+
+/** Over the 10MB threshold, most of the app's own classes still readable — should warn. */
+export const manifestDataUnoptimized = {
+  ...manifestDataPassing,
+  dexTotalBytes: 11_000_000,
+  hasBaselineProfile: false,
+  ownPackageClassTotal: 20,
+  ownPackageReadableNameCount: 18,
+};
+
+/** Over the 10MB threshold, almost none of the app's own classes still readable — should pass. */
+export const manifestDataOptimized = {
+  ...manifestDataPassing,
+  dexTotalBytes: 11_000_000,
+  hasBaselineProfile: true,
+  ownPackageClassTotal: 20,
+  ownPackageReadableNameCount: 1,
+};
+
+/** Under the 10MB threshold — Google's own scoping means the R8 check shouldn't fire at all. */
+export const manifestDataSmallDexApp = {
+  ...manifestDataPassing,
+  dexTotalBytes: 500_000,
+  hasBaselineProfile: null,
+  ownPackageClassTotal: null,
+  ownPackageReadableNameCount: null,
+};
+
+/** Over the threshold, but too few own-package classes found to judge with confidence. */
+export const manifestDataAmbiguousOwnClasses = {
+  ...manifestDataPassing,
+  dexTotalBytes: 11_000_000,
+  hasBaselineProfile: null,
+  ownPackageClassTotal: 2,
+  ownPackageReadableNameCount: 2,
+};

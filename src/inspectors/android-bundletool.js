@@ -15,6 +15,7 @@
 
 import { execFileSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
+import { inspectOptimizationSignals } from './android-optimization.js';
 
 /**
  * @typedef {Object} AndroidManifestData
@@ -25,7 +26,20 @@ import { existsSync } from 'node:fs';
  * @property {number|null} minSdkVersion
  * @property {string[]} permissions
  * @property {string} rawManifestXml
+ * @property {number|null} dexTotalBytes total uncompressed size of the base module's classes*.dex
+ *   files, or null if it couldn't be determined (see inspectAndroidBundle's try/catch below)
+ * @property {boolean|null} hasBaselineProfile
+ * @property {number|null} ownPackageClassTotal type descriptors found under the app's own package
+ * @property {number|null} ownPackageReadableNameCount ...of those, how many still look unobfuscated
  */
+
+/** Returned in place of real OptimizationSignals when the direct zip/dex read fails or is skipped. */
+const UNAVAILABLE_OPTIMIZATION_SIGNALS = {
+  dexTotalBytes: null,
+  hasBaselineProfile: null,
+  ownPackageClassTotal: null,
+  ownPackageReadableNameCount: null,
+};
 
 export class BundletoolNotFoundError extends Error {
   constructor(cmd) {
@@ -80,7 +94,23 @@ export function inspectAndroidBundle(aabPath) {
     throw new Error(`bundletool failed on ${aabPath}: ${err.message}`);
   }
 
-  return parseManifestXml(rawManifestXml);
+  const manifestData = parseManifestXml(rawManifestXml);
+
+  // Best-effort by design: this reads the .aab directly as a zip (see
+  // android-optimization.js) rather than going through bundletool, which is
+  // newer and riskier code than the plain-text manifest parsing above. A bug
+  // here, or a bundle shaped in some way this doesn't expect, must never take
+  // down the rest of the scan — the app-optimization rule treats null
+  // signals as "unavailable" and simply says nothing about them, rather than
+  // guessing or crashing a scan that would otherwise succeed.
+  let optimizationSignals;
+  try {
+    optimizationSignals = inspectOptimizationSignals(aabPath, manifestData.packageName);
+  } catch {
+    optimizationSignals = UNAVAILABLE_OPTIMIZATION_SIGNALS;
+  }
+
+  return { ...manifestData, ...optimizationSignals };
 }
 
 /**
